@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 type Order struct {
 	ID             string  `json:"id"`
 	UserID         string  `json:"user_id"`
@@ -25,6 +27,11 @@ type PlaceOrderLineReq struct {
 }
 
 type AutoCancelMsg struct {
+	OrderID   string    `json:"order_id"`
+	UserID    string    `json:"user_id"`
+	TimeStamp time.Time `json:"time_stamp"`
+}
+
+type RefundMsg struct {
 	OrderID string `json:"order_id"`
-	UserID  string `json:"user_id"`
 }

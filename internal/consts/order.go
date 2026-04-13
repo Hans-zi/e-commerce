@@ -17,5 +17,5 @@ const (
 )
 
 const (
-	AUTO_CANCEL_EXPIRED_TIME = time.Minute * 5
+	AUTO_CANCEL_DELAY_TIME = time.Minute * 30
 )

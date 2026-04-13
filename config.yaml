@@ -19,7 +19,7 @@ redis:
 
 jwt:
   symmetrickey: 12345678123456781234567812345678
-  duration: 24h
+  duration: 144h
 
 alipay:
   appid: 9021000126639558

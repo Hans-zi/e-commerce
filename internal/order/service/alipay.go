@@ -47,9 +47,9 @@ func NewAlipayService(
 		alipay:      alipay,
 		k:           k,
 	}
-	//go s.k.StartConsumeMessages(consts.TOPIC_CANCEL_ORDER,
-	//	consts.GROUP_ID_ORDER,
-	//	s.AutoCancel)
+	go s.k.StartConsumeMessages(consts.TOPIC_REFUND_ORDER,
+		consts.GROUP_ID_REFUND,
+		s.Refund)
 	return s
 }
 
@@ -73,7 +73,7 @@ func (s *alipayService) CreatePayment(orderID, userID string) (*model.Payment, e
 	p.TotalAmount = strconv.FormatFloat(order.Total, 'f', 2, 64)
 	p.ProductCode = "FAST_INSTANT_TRADE_PAY"
 	p.OutTradeNo = orderID
-	p.NotifyURL = "https://28a5ffd8.r17.cpolar.top/api/payment/alipay/notify"
+	p.NotifyURL = consts.SERVER_DOMAIN + "/api/payment/alipay/notify"
 	p.ReturnURL = ""
 
 	url, err := s.alipay.TradePagePay(p)
@@ -116,24 +116,32 @@ func (s *alipayService) CallBack(values url.Values) (*dto.CallBackRes, error) {
 	}
 
 	var res dto.CallBackRes
+	//获取订单
 	orderID := notification.OutTradeNo
 	order, err := s.orderRepo.GetByID(orderID)
 	if err != nil {
 		logger.Errorf("AlipayCallback.GetOrder: %s", err)
 		return nil, err
 	}
+	//更新订单
 	order.Status = consts.ORDER_STATUS_PAID
+	var paidAt = time.Now()
+	order.PaidAt = &paidAt
 	err = s.orderRepo.Update(order)
 	if err != nil {
 		logger.Errorf("AlipayCallback.UpdateOrder: %s", err)
 		return nil, err
 	}
+	//获取支付
 	payment, err := s.paymentRepo.GetByOrderID(orderID)
 	if err != nil {
 		logger.Errorf("AlipayCallback.GetPayment: %s", err)
 		return nil, err
 	}
+	//更新支付
 	payment.Status = consts.PAYMENT_STATUS_PAID
+	payment.TransactionID = notification.TradeNo
+	payment.Amount, _ = strconv.ParseFloat(notification.TotalAmount, 32)
 	err = s.paymentRepo.Update(payment)
 	if err != nil {
 		logger.Errorf("AlipayCallback.UpdatePayment: %s", err)
@@ -144,9 +152,6 @@ func (s *alipayService) CallBack(values url.Values) (*dto.CallBackRes, error) {
 }
 
 func (s *alipayService) AutoCancel(data []byte) error {
-	t := time.NewTicker(time.Second)
-	<-t.C
-	t.Stop()
 	logger.Infof("订单支付超时，自动取消")
 	var msg dto.AutoCancelMsg
 	err := json.Unmarshal(data, &msg)
@@ -186,5 +191,48 @@ func (s *alipayService) AutoCancel(data []byte) error {
 		logger.Errorf("CancelOrder.UpdateOrder fail: %s", err)
 		return err
 	}
+	return nil
+}
+
+func (s *alipayService) Refund(data []byte) error {
+	var msg dto.RefundMsg
+	err := json.Unmarshal(data, &msg)
+	if err != nil {
+		logger.Errorf("Refund.Unmarshal fail: %s", err)
+		return err
+	}
+	payment, err := s.paymentRepo.GetByOrderID(msg.OrderID)
+	if err != nil {
+		logger.Errorf("Refund.GetPayment fail: %s", err)
+		return err
+	}
+	var req alipay.TradeRefund
+	req.TradeNo = payment.TransactionID
+	req.OutTradeNo = payment.OrderID
+	req.RefundAmount = strconv.FormatFloat(payment.Amount, 'f', 2, 32)
+	req.RefundReason = "测试退款"
+	req.OutRequestNo = payment.OrderID + "_refund" // 幂等单号
+
+	//调用支付宝退款
+	resp, err := s.alipay.TradeRefund(context.Background(), req)
+	if err != nil {
+		logger.Errorf("Refund.TradeRefund fail: %s", err)
+		return err
+	}
+
+	//验签 + 判断是否退款成功
+	if !resp.IsSuccess() {
+		logger.Errorf("Refund failed, code=%s msg=%s", resp.Code, resp.Msg)
+		return errors.New("refund failed from alipay")
+	}
+
+	//更新支付状态为已退款
+	payment.Status = consts.PAYMENT_STATUS_REFUNDED
+	if err = s.paymentRepo.Update(payment); err != nil {
+		logger.Errorf("Refund.UpdatePayment fail: %s", err)
+		return err
+	}
+
+	logger.Infof("订单 %s 退款成功", payment.OrderID)
 	return nil
 }

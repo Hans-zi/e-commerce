@@ -96,9 +96,13 @@ func (s *orderService) PlaceOrder(userID string, req *dto.PlaceOrderReq) (*model
 	}()
 
 	go func() {
+		t := time.NewTicker(consts.AUTO_CANCEL_DELAY_TIME)
+		<-t.C
+		t.Stop()
 		var kmsg dto.AutoCancelMsg
 		kmsg.OrderID = order.ID
 		kmsg.UserID = order.UserID
+		kmsg.TimeStamp = time.Now()
 		s.k.ProduceMessage(consts.TOPIC_CANCEL_ORDER, kmsg)
 
 	}()
@@ -126,7 +130,15 @@ func (s *orderService) CancelOrder(id, userID string) error {
 		err = errors.New("无法取消订单")
 		return err
 	}
-
+	if order.Status != consts.ORDER_STATUS_PENDING { //说明已付款，需要走退款流程
+		var kmsg dto.RefundMsg
+		kmsg.OrderID = order.ID
+		err = s.k.ProduceMessage(consts.TOPIC_REFUND_ORDER, kmsg)
+		if err != nil {
+			logger.Errorf("CancelOrder.Refund fail: %s", err)
+			return err
+		}
+	}
 	//取消订单
 	order.Status = consts.ORDER_STATUS_CANCELED
 
@@ -168,9 +180,6 @@ func (r *orderService) canChangeOrderStatus(cur, nxt string) bool {
 }
 
 func (s *orderService) AutoCancel(data []byte) error {
-	t := time.NewTicker(time.Second)
-	<-t.C
-	t.Stop()
 
 	var msg dto.AutoCancelMsg
 	err := json.Unmarshal(data, &msg)
@@ -188,7 +197,7 @@ func (s *orderService) AutoCancel(data []byte) error {
 	//确认是否能取消
 	if order.Status != consts.ORDER_STATUS_PENDING {
 		err = errors.New("订单已完成")
-		return err
+		return nil
 	}
 
 	//取消订单

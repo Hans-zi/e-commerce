@@ -61,7 +61,7 @@ func (s *cartService) AddProduct(userID string, req *dto.AddProductReq) (*model.
 			line.Quantity = req.Quantity
 			err = s.repo.Update(cart)
 			if err != nil {
-				logger.Errorf("AddProduct.UpdateQuntity fail : %s", err)
+				logger.Errorf("AddProduct.UpdateQuantity fail : %s", err)
 				return nil, err
 			}
 			return cart, nil
