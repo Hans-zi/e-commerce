@@ -5,13 +5,15 @@ import (
 	"e-commerce/internal/product/model"
 	"e-commerce/internal/product/repository"
 	"e-commerce/pkg/utils"
+
+	"github.com/bytedance/gopkg/util/logger"
 )
 
 type ProductService interface {
 	Create(req *dto.CreateProductReq) (*model.Product, error)
 	GetProductByID(id string) (*model.Product, error)
 	GetProductBySlug(slug string) (*model.Product, error)
-	Update(product *model.Product) error
+	Update(id string, req *dto.UpdateProductReq) (*model.Product, error)
 	Delete(id string) error
 	ListProducts(req *dto.ListProductsReq) ([]*model.Product, *utils.Pagination, error)
 }
@@ -42,8 +44,25 @@ func (s *productSvc) GetProductBySlug(slug string) (*model.Product, error) {
 	return s.productRepo.GetBySlug(slug)
 }
 
-func (s *productSvc) Update(product *model.Product) error {
-	return s.productRepo.Update(product)
+func (s *productSvc) Update(id string, req *dto.UpdateProductReq) (*model.Product, error) {
+
+	product, err := s.productRepo.GetById(id)
+	if err != nil {
+		logger.Errorf("Update.GetUserByID fail, id: %s, error: %s", id, err)
+		return nil, err
+	}
+
+	logger.Infof("req:  %v", req)
+	if err = utils.Copy(product, req); err != nil {
+		return nil, err
+	}
+
+	err = s.productRepo.Update(product)
+	if err != nil {
+		logger.Errorf("Update fail, id: %s, error: %s", id, err)
+		return nil, err
+	}
+	return product, err
 }
 
 func (s *productSvc) Delete(id string) error {

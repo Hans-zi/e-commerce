@@ -60,3 +60,11 @@ func SetWithExpirationTime(c *redis.Client, key string, value interface{}, durat
 	}
 	return nil
 }
+
+func RemovePattern(c *redis.Client, key string) error {
+	err := c.Del(context.Background(), key).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -6,6 +6,7 @@ import (
 	"e-commerce/pkg/utils"
 	"fmt"
 
+	agentHttp "e-commerce/internal/agent/port/http"
 	cartHttp "e-commerce/internal/cart/port/http"
 	orderHttp "e-commerce/internal/order/port/http"
 	productHttp "e-commerce/internal/product/port/http"
@@ -51,6 +52,7 @@ func (s *Server) MapRoutes() error {
 	productHttp.Routes(api, s.db, s.maker, s.cache)
 	cartHttp.Routes(api, s.db, s.maker)
 	orderHttp.Routes(api, s.db, s.maker, s.alipayClient, s.cache, s.k)
+	agentHttp.Routes(api, s.db, s.maker)
 	return nil
 }
 

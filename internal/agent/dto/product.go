@@ -37,13 +37,15 @@ type CreateProductRes struct {
 }
 
 type ListProductsReq struct {
-	Page       int64  `json:"page" form:"page"`
-	PageSize   int64  `json:"page_size" form:"page_size"`
-	Name       string `json:"name,omitempty" form:"name"`
-	Slug       string `json:"slug,omitempty" form:"slug"`
-	CategoryID string `json:"category_id,omitempty" form:"category_id"`
-	OrderBy    string `json:"order_by" form:"order_by"`
-	OrderDesc  bool   `json:"-" form:"order_desc"`
+	Page       int64   `json:"page" `
+	PageSize   int64   `json:"page_size"`
+	Name       string  `json:"name,omitempty"`
+	Slug       string  `json:"slug,omitempty" `
+	MaxPrice   float64 `json:"max_price"`
+	MinPrice   float64 `json:"min_price"`
+	CategoryID string  `json:"category_id,omitempty"`
+	OrderBy    string  `json:"order_by"`
+	OrderDesc  bool    `json:"-"`
 }
 
 type ListProductsRes struct {
@@ -57,14 +59,4 @@ type GetProductReq struct {
 
 type GetProductRes struct {
 	Product Product `json:"product"`
-}
-
-type UpdateProductReq struct {
-	Name        string   `json:"name,omitempty""`
-	Slug        string   `json:"slug,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Price       float64  `json:"price,omitempty"`
-	Stock       int      `json:"stock,omitempty"`
-	Images      []string `json:"images,omitempty"`
-	CategoryID  string   `json:"category_id,omitempty"`
 }

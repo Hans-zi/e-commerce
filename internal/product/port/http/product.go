@@ -88,3 +88,27 @@ func (h *ProductHandler) GetProductByID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, utils.SuccessResponse("获取商品成功", res))
 	_ = dbs.SetWithExpirationTime(h.cache, id, &product, consts.ProductExpiredTime)
 }
+
+func (h *ProductHandler) UpdateProduct(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		err := errors.New("missing product ID")
+		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err))
+		return
+	}
+	var req dto.UpdateProductReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, utils.ErrorResponse(err))
+		return
+	}
+	product, err := h.service.Update(id, &req)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, utils.ErrorResponse(err))
+		return
+	}
+
+	var res dto.Product
+	utils.Copy(&res, product)
+	ctx.JSON(http.StatusOK, utils.SuccessResponse("获取商品成功", res))
+	_ = dbs.RemovePattern(h.cache, id)
+}

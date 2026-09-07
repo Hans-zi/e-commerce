@@ -38,5 +38,6 @@ func Routes(r *gin.RouterGroup, db *gorm.DB, maker token.Maker, cache *redis.Cli
 	products.Use(authMiddleware, adminOnly)
 	{
 		products.POST("", productHandler.CreateProduct)
+		products.PUT("/:id", productHandler.UpdateProduct)
 	}
 }
